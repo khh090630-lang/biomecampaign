@@ -130,10 +130,24 @@
                         <textarea id="edit-title" rows="2" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">이미지 URL (선택사항)</label>
-                        <input type="url" id="edit-image" placeholder="https://example.com/image.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">인터넷에 올라와 있는 이미지 주소를 넣으면 문제에 이미지가 표시됩니다.</p>
+                    <!-- 이미지 및 조건 영역을 나란히 배치 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-white border rounded">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">이미지 URL (선택사항)</label>
+                            <input type="url" id="edit-image" placeholder="https://example.com/image.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">인터넷에 올라와 있는 이미지 주소 입력</p>
+                        </div>
+                        
+                        <div class="p-4 bg-white border rounded">
+                            <div class="flex items-center mb-2">
+                                <input type="checkbox" id="enable-condition" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" onchange="toggleConditionField()">
+                                <label for="enable-condition" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">조건 박스 추가</label>
+                            </div>
+                            <div id="condition-field" class="hide mt-2">
+                                <label class="block text-xs text-gray-500 mb-1">조건 내용 (줄바꿈으로 구분)</label>
+                                <textarea id="edit-condition" rows="3" placeholder="(단, 세균 생존율 상대값은 0~100 사이의 값을 가진다.)&#10;1. A는 B보다 크다." class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"></textarea>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="editor-mcq-fields" class="hide space-y-4 border p-4 bg-white rounded">
@@ -170,19 +184,19 @@
             {
                 id: 4, 
                 difficulty: "hard", 
-                title: "[문제] 다음은 방역 물질 (가)~(다)의 특성을 나타낸 것이다. 옳은 것을 고르시오.",
+                title: "[문제] 다음은 미지의 화학 물질 M의 수용액 내 농도(C)에 따른 병원체 표면 상호작용 데이터이다. 옳은 것을 고르시오.",
                 imageUrl: "", 
-                visual: `<div class="p-4 bg-gray-100 text-center mb-4 border border-gray-300 font-mono">(가) 70% 에탄올<br>(나) 100% 에탄올<br>(다) 비누</div>`,
-                bogi: ["ㄱ. (가)는 캡슐화 역효과를 방지한다.", "ㄴ. (다)는 미셀을 형성한다."],
+                condition: "(조건 1) C < C1 일 때: 수용액 표면에만 단분자층으로 존재하며 방어막 용해력 없음.\n(조건 2) C >= C1 일 때: 수용액 내부에 구형 구조체를 자발적으로 형성하며 병원체의 방어막을 뜯어냄.",
+                bogi: ["ㄱ. C1은 임계 마이셀 농도를 의미한다.", "ㄴ. M은 계면활성제이다."],
                 options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄴ", "④ 없음", "⑤ 모르겠음"],
-                answer: "2",
-                explain: "비누는 농도가 임계치 이상일 때 자발적으로 미셀을 형성합니다."
+                answer: "3",
+                explain: "설명된 현상은 계면활성제의 미셀 형성 및 세정 원리입니다."
             }
         ];
 
         // --- [상태 변수 및 로컬 스토리지 초기화] ---
-        let questions = JSON.parse(localStorage.getItem('quarantine_questions')) || defaultQuestions;
-        let stats = JSON.parse(localStorage.getItem('quarantine_stats')) || {};
+        let questions = JSON.parse(localStorage.getItem('quarantine_questions_v2')) || defaultQuestions;
+        let stats = JSON.parse(localStorage.getItem('quarantine_stats_v2')) || {};
         
         let currentMode = null; // 'easy' or 'hard'
         let currentQuestion = null;
@@ -198,8 +212,8 @@
         initStats();
 
         function saveData() {
-            localStorage.setItem('quarantine_questions', JSON.stringify(questions));
-            localStorage.setItem('quarantine_stats', JSON.stringify(stats));
+            localStorage.setItem('quarantine_questions_v2', JSON.stringify(questions));
+            localStorage.setItem('quarantine_stats_v2', JSON.stringify(stats));
         }
 
         // --- [UI 라우팅 (모드 전환)] ---
@@ -242,7 +256,6 @@
             const randomIndex = Math.floor(Math.random() * filteredData.length);
             currentQuestion = filteredData[randomIndex];
 
-            // 통계 객체가 없으면 예외 방지용 생성
             if(!stats[currentQuestion.id]) stats[currentQuestion.id] = { total: 0, correct: 0 };
 
             document.getElementById('home-screen').classList.add('hide');
@@ -264,13 +277,17 @@
 
         function renderQuestion() {
             const container = document.getElementById('question-content');
-            let html = `<div class="text-xl font-bold leading-relaxed mb-6 whitespace-pre-wrap">${currentQuestion.title}</div>`;
+            let html = `<div class="text-xl font-bold leading-relaxed mb-4 whitespace-pre-wrap">${currentQuestion.title}</div>`;
 
-            // 관리자가 추가한 이미지 URL 렌더링
-            if (currentQuestion.imageUrl) {
+            // 조건 박스 렌더링
+            if (currentQuestion.condition && currentQuestion.condition.trim() !== '') {
+                html += `<div class="text-sm bg-gray-100 p-4 rounded border border-gray-300 mb-6 font-medium text-gray-700 whitespace-pre-wrap leading-relaxed shadow-inner"><strong>[조건]</strong>\n${currentQuestion.condition}</div>`;
+            }
+
+            // 이미지 렌더링
+            if (currentQuestion.imageUrl && currentQuestion.imageUrl.trim() !== '') {
                 html += `<div class="flex justify-center my-6"><img src="${currentQuestion.imageUrl}" class="max-w-full h-auto rounded shadow-sm border border-gray-200" alt="문제 이미지"></div>`;
             } else if (currentQuestion.visual) {
-                // 기존 데이터용 HTML 렌더링 폴백
                 html += `<div class="my-6">${currentQuestion.visual}</div>`;
             }
 
@@ -285,7 +302,7 @@
                     html += `<div class="border-2 border-gray-800 p-5 mb-6 bg-gray-50 rounded-md">
                                 <div class="font-bold mb-3">&lt;보기&gt;</div>`;
                     currentQuestion.bogi.forEach(item => {
-                        html += `<div class="mb-2 text-base">${item}</div>`;
+                        html += `<div class="mb-2 text-base leading-relaxed">${item}</div>`;
                     });
                     html += `</div>`;
                 }
@@ -310,7 +327,6 @@
 
             const isCorrect = String(userAnswer) === String(currentQuestion.answer);
             
-            // 통계 기록 및 저장
             stats[currentQuestion.id].total++;
             if (isCorrect) stats[currentQuestion.id].correct++;
             saveData();
@@ -318,7 +334,6 @@
             const feedbackArea = document.getElementById('feedback-area');
             const controls = document.getElementById('quiz-controls');
 
-            // 버튼 비활성화 시각화
             if (currentMode === 'hard') {
                 const buttons = document.querySelectorAll('#options-container button');
                 buttons.forEach(btn => {
@@ -332,7 +347,6 @@
                 buttons.forEach(btn => btn.disabled = true);
             }
 
-            // 피드백 렌더링
             feedbackArea.className = `mt-8 p-6 rounded-lg text-center font-bold text-xl animate-bounce ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
             
             let explainText = currentQuestion.explain ? `<p class="mt-3 text-sm font-normal text-gray-700 bg-white p-3 rounded opacity-90">${currentQuestion.explain}</p>` : '';
@@ -351,7 +365,6 @@
             const tbody = document.getElementById('admin-table-body');
             tbody.innerHTML = '';
 
-            // ID 순으로 정렬
             const sortedQuestions = [...questions].sort((a, b) => a.id - b.id);
 
             sortedQuestions.forEach(q => {
@@ -368,7 +381,11 @@
                             ${q.difficulty === 'easy' ? 'O/X' : '객관식'}
                         </span>
                     </td>
-                    <td class="p-3 truncate max-w-xs text-gray-800" title="${q.title}">${q.title}</td>
+                    <td class="p-3 truncate max-w-xs text-gray-800" title="${q.title}">
+                        ${q.title}
+                        ${q.condition ? '<span class="ml-2 px-1 text-[10px] bg-gray-200 text-gray-600 rounded">조건</span>' : ''}
+                        ${q.imageUrl ? '<span class="ml-1 px-1 text-[10px] bg-blue-100 text-blue-600 rounded">IMG</span>' : ''}
+                    </td>
                     <td class="p-3 text-center font-bold text-gray-600">${st.total}회</td>
                     <td class="p-3 text-center font-bold text-blue-600">${st.total > 0 ? correctRate + '%' : '-'}</td>
                     <td class="p-3 text-center font-bold text-red-500">${st.total > 0 ? incorrectRate + '%' : '-'}</td>
@@ -401,6 +418,7 @@
             }
         }
 
+        // 입력 폼 동적 토글 기능들
         function toggleEditorFields() {
             const diff = document.getElementById('edit-difficulty').value;
             const mcqFields = document.getElementById('editor-mcq-fields');
@@ -413,19 +431,34 @@
             }
         }
 
+        function toggleConditionField() {
+            const checkbox = document.getElementById('enable-condition');
+            const field = document.getElementById('condition-field');
+            const textarea = document.getElementById('edit-condition');
+            if (checkbox.checked) {
+                field.classList.remove('hide');
+            } else {
+                field.classList.add('hide');
+                textarea.value = ''; // 체크 해제 시 내용 삭제
+            }
+        }
+
         function openEditor(id) {
             document.getElementById('admin-list').classList.add('hide');
             document.getElementById('admin-editor').classList.remove('hide');
             const form = document.getElementById('question-form');
             form.reset();
 
+            const conditionCheckbox = document.getElementById('enable-condition');
+            
             if (id === null) {
-                // 새 문제 추가 모드
+                // 새 문제
                 document.getElementById('editor-title').innerText = "새 문제 추가";
                 document.getElementById('edit-id').value = "";
                 document.getElementById('edit-difficulty').value = "easy";
+                conditionCheckbox.checked = false;
             } else {
-                // 기존 문제 수정 모드
+                // 기존 문제
                 document.getElementById('editor-title').innerText = `문제 수정 (#${id})`;
                 const q = questions.find(q => q.id === id);
                 document.getElementById('edit-id').value = q.id;
@@ -435,12 +468,22 @@
                 document.getElementById('edit-answer').value = q.answer;
                 document.getElementById('edit-explain').value = q.explain || "";
                 
+                // 조건 박스 처리
+                if (q.condition && q.condition.trim() !== "") {
+                    conditionCheckbox.checked = true;
+                    document.getElementById('edit-condition').value = q.condition;
+                } else {
+                    conditionCheckbox.checked = false;
+                    document.getElementById('edit-condition').value = "";
+                }
+
                 if (q.difficulty === 'hard') {
                     document.getElementById('edit-bogi').value = (q.bogi || []).join('\n');
                     document.getElementById('edit-options').value = (q.options || []).join('\n');
                 }
             }
             toggleEditorFields();
+            toggleConditionField();
         }
 
         function closeEditor() {
@@ -455,13 +498,21 @@
             const difficulty = document.getElementById('edit-difficulty').value;
             
             const newQuestion = {
-                id: idVal ? parseInt(idVal) : Date.now(), // 새 문제면 현재 타임스탬프를 ID로 사용
+                id: idVal ? parseInt(idVal) : Date.now(),
                 difficulty: difficulty,
                 title: document.getElementById('edit-title').value,
                 imageUrl: document.getElementById('edit-image').value,
                 answer: document.getElementById('edit-answer').value,
                 explain: document.getElementById('edit-explain').value,
             };
+
+            // 조건 데이터 저장
+            const isConditionEnabled = document.getElementById('enable-condition').checked;
+            if (isConditionEnabled) {
+                newQuestion.condition = document.getElementById('edit-condition').value;
+            } else {
+                newQuestion.condition = "";
+            }
 
             if (difficulty === 'hard') {
                 const bogiText = document.getElementById('edit-bogi').value;
@@ -472,13 +523,10 @@
             }
 
             if (idVal) {
-                // 기존 문제 업데이트
                 const index = questions.findIndex(q => q.id === parseInt(idVal));
-                // visual(기존 SVG등) 데이터가 있었다면 유지
                 if(questions[index].visual) newQuestion.visual = questions[index].visual;
                 questions[index] = newQuestion;
             } else {
-                // 새 문제 추가
                 questions.push(newQuestion);
                 stats[newQuestion.id] = { total: 0, correct: 0 };
             }
@@ -489,7 +537,7 @@
             alert("저장되었습니다!");
         }
 
-        // 초기 시작 모드 설정
+        // 초기 시작 모드
         switchMode('student');
 
     </script>
