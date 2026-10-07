@@ -12,7 +12,6 @@
         .ox-btn:active { transform: scale(0.95); }
         .hide { display: none !important; }
         
-        /* 로딩 스피너 애니메이션 */
         .loader {
             border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6;
             border-radius: 50%; width: 40px; height: 40px;
@@ -23,13 +22,11 @@
 </head>
 <body class="bg-gray-100 min-h-screen font-sans text-gray-900">
 
-    <!-- 글로벌 로딩 오버레이 -->
     <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-90 z-50 flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="loader mb-4"></div>
         <p class="text-gray-700 font-bold" id="loading-text">데이터를 불러오는 중입니다...</p>
     </div>
 
-    <!-- 상단 네비게이션 -->
     <nav class="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center relative z-10">
         <div class="font-bold text-xl tracking-wide flex items-center gap-2">🧬 방역 원리 학습 시스템</div>
         <div class="flex gap-4">
@@ -38,7 +35,6 @@
         </div>
     </nav>
 
-    <!-- 메인 컨테이너 -->
     <div class="max-w-5xl mx-auto my-8 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200">
 
         <!-- [학생 모드] -->
@@ -105,6 +101,7 @@
                 </table>
             </div>
 
+            <!-- 에디터 -->
             <div id="admin-editor" class="hide p-6 bg-gray-50 border-t border-gray-200">
                 <h2 id="editor-title" class="text-xl font-bold text-gray-800 mb-6 border-b pb-2">문제 수정</h2>
                 <form id="question-form" onsubmit="saveQuestion(event)" class="space-y-4">
@@ -146,7 +143,19 @@
                         </div>
                     </div>
 
-                    <div id="editor-mcq-fields" class="hide space-y-4 border p-4 bg-white rounded">
+                    <!-- 표(Table) 추가 영역 -->
+                    <div class="p-4 bg-white border rounded mt-2">
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="enable-table" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" onchange="toggleTableField()">
+                            <label for="enable-table" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">데이터 표(Table) 추가</label>
+                        </div>
+                        <div id="table-field" class="hide mt-2">
+                            <p class="text-xs text-gray-500 mb-2">칸은 <b>|</b> 기호로, 줄은 <b>엔터(줄바꿈)</b>로 구분합니다. (첫 줄은 표의 제목칸이 됩니다)</p>
+                            <textarea id="edit-table" rows="4" placeholder="환경 | X 처리 | Y 처리&#10;(가) | 100 | a&#10;(나) | 0 | b" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 font-mono"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="editor-mcq-fields" class="hide space-y-4 border p-4 bg-white rounded mt-2">
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">&lt;보기&gt; 내용 (줄바꿈 구분, 선택)</label>
                             <textarea id="edit-bogi" rows="3" placeholder="ㄱ. 첫번째 보기&#10;ㄴ. 두번째 보기" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
@@ -173,7 +182,7 @@
 
     <script>
         // ========================================================
-        // 👇 여기에 복사한 Apps Script 웹 앱 URL을 붙여넣으세요 👇
+        // 👇 Apps Script 웹 앱 URL (배포 후 생성된 URL로 갱신하세요) 👇
         // ========================================================
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzw_StiP6-q-8Sz9HnbCfhT-bmnsGRt7igNtKBvH2WaSZCJOELGs25n_gvo9gDScddv/exec';
         
@@ -184,7 +193,6 @@
         let currentQuestion = null;
         let isAnswered = false;
 
-        // UI 로딩 관리
         function showLoading(msg = '데이터를 불러오는 중입니다...') {
             document.getElementById('loading-text').innerText = msg;
             document.getElementById('loading-overlay').classList.remove('hide');
@@ -193,8 +201,6 @@
             document.getElementById('loading-overlay').classList.add('hide');
         }
 
-        // --- [백엔드 통신 API] ---
-        // 1. 전체 데이터 불러오기
         async function fetchAllData() {
             showLoading();
             try {
@@ -203,12 +209,6 @@
                 questions = data.questions || [];
                 stats = data.stats || {};
                 
-                // 데이터가 비어있으면 초기 세팅 샘플 추가 알림
-                if(questions.length === 0) {
-                    alert("시트에 등록된 문제가 없습니다. 관리자 모드에서 문제를 추가해주세요.");
-                }
-                
-                // 현재 뷰에 맞게 테이블 렌더링 갱신
                 if(!document.getElementById('view-admin').classList.contains('hide')) {
                     renderAdminTable();
                 }
@@ -220,17 +220,13 @@
             }
         }
 
-        // 2. 백엔드 POST 요청 공통 함수
         async function postData(payload, successMsg = "") {
             showLoading('클라우드에 동기화 중...');
             try {
-                // Apps Script CORS 우회를 위해 text/plain 속성으로 JSON 스트링 전송
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
-                
-                // 작업 완료 후 최신 데이터 다시 받아오기
                 await fetchAllData();
                 if(successMsg) alert(successMsg);
             } catch (error) {
@@ -240,18 +236,11 @@
             }
         }
 
-        // 앱 초기화 실행
         window.onload = () => {
-            if(SCRIPT_URL === '여기에_웹앱_URL을_붙여넣으세요') {
-                alert('SCRIPT_URL이 설정되지 않았습니다. 코드를 수정해주세요!');
-                hideLoading();
-            } else {
-                fetchAllData();
-            }
+            fetchAllData();
             switchMode('student');
         };
 
-        // --- [UI 라우팅 (모드 전환)] ---
         function switchMode(viewName) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('hide'));
             document.getElementById('nav-student').classList.remove('bg-blue-600', 'bg-gray-700');
@@ -271,7 +260,6 @@
             }
         }
 
-        // ==================== [학생 모드 로직] ====================
         function resetToHome() {
             document.getElementById('home-screen').classList.remove('hide');
             document.getElementById('quiz-screen').classList.add('hide');
@@ -283,7 +271,7 @@
             
             const filteredData = questions.filter(q => q.difficulty === mode);
             if(filteredData.length === 0) {
-                alert("해당 난이도의 문제가 없습니다. 관리자 모드에서 문제를 추가해주세요.");
+                alert("해당 난이도의 문제가 없습니다.");
                 resetToHome();
                 return;
             }
@@ -315,8 +303,30 @@
             if (currentQuestion.condition && currentQuestion.condition.trim() !== '') {
                 html += `<div class="text-sm bg-gray-100 p-4 rounded border border-gray-300 mb-6 font-medium text-gray-700 whitespace-pre-wrap leading-relaxed shadow-inner"><strong>[조건]</strong>\n${currentQuestion.condition}</div>`;
             }
+
             if (currentQuestion.imageUrl && currentQuestion.imageUrl.trim() !== '') {
                 html += `<div class="flex justify-center my-6"><img src="${currentQuestion.imageUrl}" class="max-w-full h-auto rounded shadow-sm border border-gray-200" alt="문제 이미지"></div>`;
+            }
+
+            // 표(Table) 시각화 렌더링 추가
+            if (currentQuestion.tableData && currentQuestion.tableData.trim() !== '') {
+                const rows = currentQuestion.tableData.trim().split('\n');
+                let tableHtml = `<div class="my-6 overflow-x-auto"><table class="w-full max-w-lg mx-auto text-center border-collapse text-sm bg-black text-white">`;
+                
+                rows.forEach((row, index) => {
+                    const cols = row.split('|').map(c => c.trim());
+                    tableHtml += `<tr>`;
+                    cols.forEach(col => {
+                        if (index === 0) {
+                            tableHtml += `<th class="border border-gray-600 p-2 font-bold">${col}</th>`;
+                        } else {
+                            tableHtml += `<td class="border border-gray-600 p-2">${col}</td>`;
+                        }
+                    });
+                    tableHtml += `</tr>`;
+                });
+                tableHtml += `</table></div>`;
+                html += tableHtml;
             }
 
             if (currentMode === 'easy') {
@@ -355,11 +365,10 @@
 
             const isCorrect = String(userAnswer) === String(currentQuestion.answer);
             
-            // 통계 백그라운드 전송 (화면 끊김 방지를 위해 await 없이 비동기 던지기)
             fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'recordStat', id: currentQuestion.id, isCorrect: isCorrect })
-            }).then(() => fetchAllData()); // 통계 기록 후 조용히 데이터 업데이트
+            }).then(() => fetchAllData()); 
 
             const feedbackArea = document.getElementById('feedback-area');
             const controls = document.getElementById('quiz-controls');
@@ -386,7 +395,6 @@
             controls.classList.remove('hide');
         }
 
-        // ==================== [관리자 모드 로직] ====================
         function renderAdminTable() {
             const tbody = document.getElementById('admin-table-body');
             tbody.innerHTML = '';
@@ -411,6 +419,7 @@
                         ${q.title}
                         ${q.condition ? '<span class="ml-2 px-1 text-[10px] bg-gray-200 text-gray-600 rounded">조건</span>' : ''}
                         ${q.imageUrl ? '<span class="ml-1 px-1 text-[10px] bg-blue-100 text-blue-600 rounded">IMG</span>' : ''}
+                        ${q.tableData ? '<span class="ml-1 px-1 text-[10px] bg-yellow-100 text-yellow-700 rounded">표</span>' : ''}
                     </td>
                     <td class="p-3 text-center font-bold text-gray-600">${st.total}회</td>
                     <td class="p-3 text-center font-bold text-blue-600">${st.total > 0 ? correctRate + '%' : '-'}</td>
@@ -436,7 +445,6 @@
             }
         }
 
-        // 입력 폼 동적 토글
         function toggleEditorFields() {
             const diff = document.getElementById('edit-difficulty').value;
             const mcqFields = document.getElementById('editor-mcq-fields');
@@ -452,9 +460,15 @@
         function toggleConditionField() {
             const checkbox = document.getElementById('enable-condition');
             const field = document.getElementById('condition-field');
-            const textarea = document.getElementById('edit-condition');
             if (checkbox.checked) field.classList.remove('hide');
-            else { field.classList.add('hide'); textarea.value = ''; }
+            else { field.classList.add('hide'); document.getElementById('edit-condition').value = ''; }
+        }
+
+        function toggleTableField() {
+            const checkbox = document.getElementById('enable-table');
+            const field = document.getElementById('table-field');
+            if (checkbox.checked) field.classList.remove('hide');
+            else { field.classList.add('hide'); document.getElementById('edit-table').value = ''; }
         }
 
         function openEditor(id) {
@@ -464,12 +478,14 @@
             form.reset();
 
             const conditionCheckbox = document.getElementById('enable-condition');
+            const tableCheckbox = document.getElementById('enable-table');
             
             if (id === null) {
                 document.getElementById('editor-title').innerText = "새 문제 추가";
                 document.getElementById('edit-id').value = "";
                 document.getElementById('edit-difficulty').value = "easy";
                 conditionCheckbox.checked = false;
+                tableCheckbox.checked = false;
             } else {
                 document.getElementById('editor-title').innerText = `문제 수정 (#${id})`;
                 const q = questions.find(q => q.id === id);
@@ -488,6 +504,14 @@
                     document.getElementById('edit-condition').value = "";
                 }
 
+                if (q.tableData && q.tableData.trim() !== "") {
+                    tableCheckbox.checked = true;
+                    document.getElementById('edit-table').value = q.tableData;
+                } else {
+                    tableCheckbox.checked = false;
+                    document.getElementById('edit-table').value = "";
+                }
+
                 if (q.difficulty === 'hard') {
                     document.getElementById('edit-bogi').value = (q.bogi || []).join('\n');
                     document.getElementById('edit-options').value = (q.options || []).join('\n');
@@ -495,6 +519,7 @@
             }
             toggleEditorFields();
             toggleConditionField();
+            toggleTableField();
         }
 
         function closeEditor() {
@@ -518,6 +543,9 @@
 
             const isConditionEnabled = document.getElementById('enable-condition').checked;
             newQuestion.condition = isConditionEnabled ? document.getElementById('edit-condition').value : "";
+
+            const isTableEnabled = document.getElementById('enable-table').checked;
+            newQuestion.tableData = isTableEnabled ? document.getElementById('edit-table').value : "";
 
             if (difficulty === 'hard') {
                 const bogiText = document.getElementById('edit-bogi').value;
