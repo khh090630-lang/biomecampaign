@@ -192,6 +192,7 @@
         let currentMode = null;
         let currentQuestion = null;
         let isAnswered = false;
+        let lastQuestionId = null; // 중복 출제 방지용 변수
 
         function showLoading(msg = '데이터를 불러오는 중입니다...') {
             document.getElementById('loading-text').innerText = msg;
@@ -271,13 +272,24 @@
             
             const filteredData = questions.filter(q => q.difficulty === mode);
             if(filteredData.length === 0) {
-                alert("해당 난이도의 문제가 없습니다.");
+                alert("해당 난이도의 문제가 없습니다. 관리자 모드에서 추가해주세요.");
                 resetToHome();
                 return;
             }
 
-            const randomIndex = Math.floor(Math.random() * filteredData.length);
-            currentQuestion = filteredData[randomIndex];
+            // 문제 랜덤 추출 (직전 문제 연속 출제 방지)
+            if (filteredData.length === 1) {
+                currentQuestion = filteredData[0];
+            } else {
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * filteredData.length);
+                } while (filteredData[randomIndex].id === lastQuestionId);
+                
+                currentQuestion = filteredData[randomIndex];
+            }
+
+            lastQuestionId = currentQuestion.id;
 
             document.getElementById('home-screen').classList.add('hide');
             document.getElementById('quiz-screen').classList.remove('hide');
@@ -308,7 +320,7 @@
                 html += `<div class="flex justify-center my-6"><img src="${currentQuestion.imageUrl}" class="max-w-full h-auto rounded shadow-sm border border-gray-200" alt="문제 이미지"></div>`;
             }
 
-            // 표(Table) 시각화 렌더링 추가
+            // 표(Table) 시각화 렌더링
             if (currentQuestion.tableData && currentQuestion.tableData.trim() !== '') {
                 const rows = currentQuestion.tableData.trim().split('\n');
                 let tableHtml = `<div class="my-6 overflow-x-auto"><table class="w-full max-w-lg mx-auto text-center border-collapse text-sm bg-black text-white">`;
