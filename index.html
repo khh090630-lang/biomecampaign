@@ -3,282 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>방역 퀴즈 - 랜덤 문제 풀이</title>
+    <title>방역 원리 모의고사 - 학습 시스템</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
         .ox-btn { transition: all 0.2s ease-in-out; }
         .ox-btn:hover { transform: scale(1.05); }
         .ox-btn:active { transform: scale(0.95); }
+        .hide { display: none !important; }
     </style>
 </head>
-<body class="bg-gray-100 py-8 px-4 font-sans text-gray-900 min-h-screen flex items-center justify-center">
+<body class="bg-gray-100 min-h-screen font-sans text-gray-900">
 
-    <div class="w-full max-w-3xl bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 relative">
-        
-        <!-- 헤더 -->
-        <div class="bg-blue-900 text-white p-6 text-center border-b-4 border-blue-700">
-            <h1 class="text-3xl font-extrabold tracking-tight" onclick="resetToHome()" style="cursor: pointer;">방역 원리 모의고사</h1>
-            <p class="mt-2 text-blue-200 text-sm">개념 확인부터 실전 문제까지, 1문제씩 랜덤으로 풀어보세요!</p>
+    <!-- 상단 네비게이션 (모드 전환) -->
+    <nav class="bg-gray-900 text-white p-4 shadow-md flex justify-between items-center">
+        <div class="font-bold text-xl tracking-wide flex items-center gap-2">
+            🧬 방역 원리 학습 시스템
+        </div>
+        <div class="flex gap-4">
+            <button onclick="switchMode('student')" id="nav-student" class="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500 font-bold transition">학생 모드 (문제풀이)</button>
+            <button onclick="switchMode('admin')" id="nav-admin" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 font-bold transition">관리자 모드 (통계/수정)</button>
+        </div>
+    </nav>
+
+    <!-- 메인 컨테이너 -->
+    <div class="max-w-5xl mx-auto my-8 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200">
+
+        <!-- ==================== [학생 모드] ==================== -->
+        <div id="view-student" class="view-section">
+            <div class="bg-blue-900 text-white p-6 text-center border-b-4 border-blue-700">
+                <h1 class="text-3xl font-extrabold tracking-tight cursor-pointer" onclick="resetToHome()">방역 원리 모의고사</h1>
+                <p class="mt-2 text-blue-200 text-sm">개념 확인부터 실전 문제까지, 1문제씩 랜덤으로 풀어보세요!</p>
+            </div>
+
+            <!-- 난이도 선택 홈 -->
+            <div id="home-screen" class="p-8 text-center space-y-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-8">풀이할 문제의 난이도를 선택하세요</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <button onclick="loadQuestion('easy')" class="group flex flex-col items-center justify-center p-8 bg-green-50 border-2 border-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all duration-300 shadow-sm hover:shadow-lg">
+                        <span class="text-4xl mb-4">🌱</span>
+                        <span class="text-2xl font-bold mb-2">개념 확인 (O/X)</span>
+                        <span class="text-sm opacity-80 font-medium">손 위생 원리</span>
+                    </button>
+                    <button onclick="loadQuestion('hard')" class="group flex flex-col items-center justify-center p-8 bg-red-50 border-2 border-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300 shadow-sm hover:shadow-lg">
+                        <span class="text-4xl mb-4">🔥</span>
+                        <span class="text-2xl font-bold mb-2">실전 고난도 (객관식)</span>
+                        <span class="text-sm opacity-80 font-medium">데이터 분석 및 추론</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 문제 풀이 화면 -->
+            <div id="quiz-screen" class="hide p-6 md:p-10">
+                <div class="flex justify-between items-center mb-6 text-sm font-bold text-gray-500 border-b pb-4">
+                    <span id="quiz-type-badge" class="px-3 py-1 rounded-full bg-gray-200">난이도</span>
+                    <button onclick="resetToHome()" class="hover:text-blue-600 underline">처음으로 돌아가기</button>
+                </div>
+
+                <div id="question-content" class="min-h-[200px]"></div>
+
+                <div id="feedback-area" class="hide mt-8 p-6 rounded-lg text-center font-bold text-xl animate-bounce"></div>
+
+                <div id="quiz-controls" class="hide mt-8 flex justify-center">
+                    <button onclick="loadQuestion(currentMode)" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
+                        다음 문제 뽑기 🎲
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- 홈 화면 (난이도 선택) -->
-        <div id="home-screen" class="p-8 text-center space-y-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-8">풀이할 문제의 난이도를 선택하세요</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onclick="loadQuestion('easy')" class="group flex flex-col items-center justify-center p-8 bg-green-50 border-2 border-green-500 rounded-xl hover:bg-green-500 hover:text-white transition-all duration-300">
-                    <span class="text-4xl mb-4">🌱</span>
-                    <span class="text-2xl font-bold mb-2">개념 확인 (O/X)</span>
-                    <span class="text-sm opacity-80 font-medium">손 위생 원리</span>
+        <!-- ==================== [관리자 모드] ==================== -->
+        <div id="view-admin" class="view-section hide">
+            <div class="bg-gray-800 text-white p-6 text-center border-b-4 border-gray-600 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">🛠️ 관리자 대시보드</h1>
+                <button onclick="openEditor(null)" class="bg-green-500 hover:bg-green-400 text-white px-4 py-2 rounded font-bold text-sm shadow">
+                    + 새 문제 추가
                 </button>
-                <button onclick="loadQuestion('hard')" class="group flex flex-col items-center justify-center p-8 bg-red-50 border-2 border-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-300">
-                    <span class="text-4xl mb-4">🔥</span>
-                    <span class="text-2xl font-bold mb-2">실전 고난도 (객관식)</span>
-                    <span class="text-sm opacity-80 font-medium">데이터 분석 및 추론</span>
-                </button>
+            </div>
+
+            <!-- 통계 및 목록 테이블 -->
+            <div id="admin-list" class="p-6 overflow-x-auto">
+                <div class="mb-4 flex justify-between items-end">
+                    <h2 class="text-xl font-bold text-gray-800">📊 문항별 통계 및 관리</h2>
+                    <button onclick="clearStats()" class="text-xs text-red-500 hover:underline">통계 초기화</button>
+                </div>
+                <table class="w-full text-left border-collapse bg-white shadow-sm rounded-lg overflow-hidden">
+                    <thead class="bg-gray-100 border-b-2 border-gray-300">
+                        <tr>
+                            <th class="p-3 text-sm font-bold text-gray-600">ID</th>
+                            <th class="p-3 text-sm font-bold text-gray-600">유형</th>
+                            <th class="p-3 text-sm font-bold text-gray-600 w-1/3">문제 내용</th>
+                            <th class="p-3 text-sm font-bold text-gray-600 text-center">풀이 횟수</th>
+                            <th class="p-3 text-sm font-bold text-gray-600 text-center">정답률</th>
+                            <th class="p-3 text-sm font-bold text-gray-600 text-center">오답률</th>
+                            <th class="p-3 text-sm font-bold text-gray-600 text-center">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-table-body" class="divide-y divide-gray-200 text-sm">
+                        <!-- JS로 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 문제 수정/추가 폼 -->
+            <div id="admin-editor" class="hide p-6 bg-gray-50 border-t border-gray-200">
+                <h2 id="editor-title" class="text-xl font-bold text-gray-800 mb-6 border-b pb-2">문제 수정</h2>
+                <form id="question-form" onsubmit="saveQuestion(event)" class="space-y-4">
+                    <input type="hidden" id="edit-id">
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">난이도 (유형)</label>
+                            <select id="edit-difficulty" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" onchange="toggleEditorFields()">
+                                <option value="easy">개념 확인 (O/X)</option>
+                                <option value="hard">실전 고난도 (객관식)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">정답</label>
+                            <input type="text" id="edit-answer" placeholder="O, X 또는 1~5 숫자" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">문제 제목 (내용)</label>
+                        <textarea id="edit-title" rows="2" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">이미지 URL (선택사항)</label>
+                        <input type="url" id="edit-image" placeholder="https://example.com/image.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">인터넷에 올라와 있는 이미지 주소를 넣으면 문제에 이미지가 표시됩니다.</p>
+                    </div>
+
+                    <div id="editor-mcq-fields" class="hide space-y-4 border p-4 bg-white rounded">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">&lt;보기&gt; 내용 (줄바꿈으로 구분, 선택사항)</label>
+                            <textarea id="edit-bogi" rows="3" placeholder="ㄱ. 첫번째 보기&#10;ㄴ. 두번째 보기" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">객관식 선지 (반드시 5줄로 작성, 줄바꿈으로 구분)</label>
+                            <textarea id="edit-options" rows="5" placeholder="① ㄱ&#10;② ㄴ&#10;③ ㄱ, ㄴ&#10;④ ㄴ, ㄷ&#10;⑤ ㄱ, ㄴ, ㄷ" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">해설 (선택사항)</label>
+                        <textarea id="edit-explain" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button type="button" onclick="closeEditor()" class="px-4 py-2 bg-gray-300 text-gray-800 font-bold rounded hover:bg-gray-400">취소</button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow">저장하기</button>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <!-- 문제 풀이 화면 -->
-        <div id="quiz-screen" class="hidden p-6 md:p-10">
-            <!-- 상태 표시줄 -->
-            <div class="flex justify-between items-center mb-6 text-sm font-bold text-gray-500 border-b pb-4">
-                <span id="quiz-type-badge" class="px-3 py-1 rounded-full bg-gray-200">난이도</span>
-                <button onclick="resetToHome()" class="hover:text-blue-600 underline">처음으로</button>
-            </div>
-
-            <!-- 문제 내용 -->
-            <div id="question-content" class="min-h-[200px]">
-                <!-- JS로 렌더링 됨 -->
-            </div>
-
-            <!-- 결과 피드백 영역 -->
-            <div id="feedback-area" class="hidden mt-8 p-6 rounded-lg text-center font-bold text-xl animate-bounce">
-            </div>
-
-            <!-- 하단 컨트롤 -->
-            <div id="quiz-controls" class="hidden mt-8 flex justify-center">
-                <button onclick="loadQuestion(currentMode)" class="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
-                    다음 문제 뽑기 🎲
-                </button>
-            </div>
-        </div>
-
     </div>
 
     <script>
-        // --- [데이터: 쉬운 문제 (O/X)] ---
-        const easyQuestions = [
-            { id: 1, title: "에탄올은 세균 단백질의 1차 구조인 아미노산 간의 펩타이드 결합을 직접 절단하여 살균한다.", answer: "X", explain: "에탄올은 2, 3차 입체 구조를 유지하는 수소 결합을 교란시킬 뿐, 펩타이드 결합을 절단하지 않습니다." },
-            { id: 2, title: "에탄올은 단백질의 입체 구조를 유지하는 수소 결합을 교란하여 단백질을 응고(변성)시킨다.", answer: "O" },
-            { id: 3, title: "에탄올로 소독한 후에는 세균의 사체가 피부 표면에 잔류한다.", answer: "O" },
-            { id: 4, title: "100% 에탄올은 세균 표면의 수분을 날려 겉면 단백질을 굳힘으로써 내부 투과가 차단되어 살균력이 감소한다.", answer: "O" },
-            { id: 5, title: "70% 에탄올 수용액 내의 물 분자는 단백질 구조 붕괴의 촉매 및 내부 침투 역할을 한다.", answer: "O" },
-            { id: 6, title: "비누(계면활성제)는 물과 상호작용하는 친수성 머리와 무극성 용매와 상호작용하는 소수성 꼬리를 지닌 양친매성 분자이다.", answer: "O" },
-            { id: 7, title: "계면활성제의 수용액 내 농도가 임계 마이셀 농도 미만일 때 자발적으로 구형 구조체(미셀)를 형성한다.", answer: "X", explain: "임계 마이셀 농도 '이상'일 때 자발적으로 형성됩니다." },
-            { id: 8, title: "미셀 형성은 물 분자들의 자유도가 증가하여 전체 계의 엔트로피가 증가하는 방향으로 진행된다.", answer: "O" },
-            { id: 9, title: "비누의 친수성 머리가 병원체 지질막 및 유기물 내부로 침투하여 결합한다.", answer: "X", explain: "유기물 내부로 침투하는 것은 친수성 머리가 아니라 '소수성 꼬리'입니다." },
-            { id: 10, title: "비누의 소수성 꼬리는 유기물과 분산력(무극성 분자 간 인력)으로 결합한다.", answer: "O" },
-            { id: 11, title: "비누 세정 시 친수성 머리가 흐르는 물과 인력을 형성하여 병원체와 오염물을 피부 표면에서 뜯어낸다.", answer: "O" },
-            { id: 12, title: "비누로 손을 씻은 후에는 에탄올과 마찬가지로 세균의 사체가 피부에 잔류한다.", answer: "X", explain: "비누 세정 시 물리적 이탈(뜯어냄)이 동반되어 사체가 잔류하지 않습니다." },
-            { id: 13, title: "땀, 피지 등 유기물이 존재하는 피부 표면에 에탄올을 도포하면 '캡슐화 역효과'가 발생한다.", answer: "O" },
-            { id: 14, title: "캡슐화 역효과 발생 시 에탄올이 유기물 겉표면의 단백질을 응고시켜 병원체를 보호하는 코팅막을 형성한다.", answer: "O" },
-            { id: 15, title: "유기물이 많을 때 형성된 캡슐화 코팅막은 병원체의 사멸 시간을 단축시킨다.", answer: "X", explain: "투과를 차단하여 병원체를 보호하므로 생존율이 오히려 상승합니다." },
-            { id: 16, title: "비누 거품을 낸 후 흐르는 물에 씻지 않으면 용해된 세균과 미셀이 피부에 잔류하게 된다.", answer: "O" },
-            { id: 17, title: "손에 물기가 많은 상태에서 70% 에탄올을 도포하면 소독제가 희석되어 단백질 변성 임계 농도 미만으로 떨어진다.", answer: "O" },
-            { id: 18, title: "교실이나 도서관 문손잡이 등 유기물이 없는 건조한 접촉 오염 환경에서는 에탄올 도포만으로도 방역이 가능하다.", answer: "O" },
-            { id: 19, title: "식사 후나 체육관 등 유기물 오염 환경에서는 캡슐화 현상을 유도하기 위해 에탄올을 우선 사용해야 한다.", answer: "X", explain: "유기물 오염 시에는 캡슐화 방지를 위해 비누와 흐르는 물 세정이 필수입니다." },
-            { id: 20, title: "비누의 작용 기전 중 용해 과정에서는 소수성 꼬리가 병원체 지질막 내부로 침투한다.", answer: "O" },
-            { id: 21, title: "미셀이 형성되는 열역학적 이유는 전체 계의 엔트로피가 감소하는 방향으로 진행되기 때문이다.", answer: "X", explain: "엔트로피가 '증가'하는 방향으로 자발적으로 진행됩니다." },
-            { id: 22, title: "에탄올의 살균 원리는 병원체의 2, 3차 단백질 입체 구조를 교란시키는 것이다.", answer: "O" },
-            { id: 23, title: "손에 묻은 먼지만 있는 건조 환경에서는 에탄올의 캡슐화 역효과가 발생하지 않는다.", answer: "O" },
-            { id: 24, title: "유기물 오염 환경을 방역할 때는 분산력 작용과 비누를 이용한 흐르는 물 세정이 필수적이다.", answer: "O" },
-            { id: 25, title: "잔류 수분에 의해 70% 에탄올이 희석되어도 살균 효과는 100% 동일하게 유지된다.", answer: "X", explain: "약 60~80% 미만으로 희석되면 단백질 변성 임계 농도를 충족하지 못해 살균력이 감소합니다." }
-        ];
-
-        // --- [데이터: 고난도 문제 (객관식)] ---
-        // (기존 1~12번 데이터 동일)
-        const hardQuestions = [
+        // --- [초기 기본 데이터 세팅] ---
+        const defaultQuestions = [
+            { id: 1, difficulty: "easy", title: "에탄올은 세균 단백질의 1차 구조인 아미노산 간의 펩타이드 결합을 직접 절단하여 살균한다.", answer: "X", explain: "에탄올은 2, 3차 입체 구조를 유지하는 수소 결합을 교란시킬 뿐, 펩타이드 결합을 절단하지 않습니다." },
+            { id: 2, difficulty: "easy", title: "비누(계면활성제)는 물과 상호작용하는 친수성 머리와 무극성 용매와 상호작용하는 소수성 꼬리를 지닌 양친매성 분자이다.", answer: "O", explain: "" },
+            { id: 3, difficulty: "easy", title: "유기물이 많을 때 형성된 캡슐화 코팅막은 병원체의 사멸 시간을 단축시킨다.", answer: "X", explain: "투과를 차단하여 병원체를 보호하므로 생존율이 오히려 상승합니다." },
             {
-                id: 1,
-                title: "[문제 1] 제공된 그래프는 무기물 표면에서 방역 물질 X, Y 수용액의 농도 변화에 따른 세균 사멸 시간을 측정한 것이다. 이에 대한 설명으로 옳은 것만을 <보기>에서 있는 대로 고른 것은? (단, X, Y는 각각 에탄올과 계면활성제 중 하나이며, Y 처리 시에는 수류 세정이 동반된다고 가정한다.)",
-                visual: `
-                <div class="flex justify-center my-4">
-                    <svg viewBox="0 0 350 250" class="w-80 h-auto border border-gray-300 p-4 bg-white">
-                        <polyline points="40,20 40,200 320,200" fill="none" stroke="black" stroke-width="2" />
-                        <polygon points="37,20 43,20 40,10" fill="black" />
-                        <polygon points="320,197 320,203 330,200" fill="black" />
-                        <text x="15" y="30" font-size="12" font-weight="bold">세균</text>
-                        <text x="5" y="45" font-size="12" font-weight="bold">사멸시간</text>
-                        <text x="270" y="225" font-size="12" font-weight="bold">수용액 농도</text>
-                        <path d="M 50,40 Q 120,190 180,180 Q 230,140 260,60" fill="none" stroke="black" stroke-width="1.5" />
-                        <text x="270" y="55" font-size="14" font-weight="bold">X</text>
-                        <path d="M 60,80 Q 120,190 180,190 L 300,180" fill="none" stroke="black" stroke-width="1.5" />
-                        <text x="310" y="185" font-size="14" font-weight="bold">Y</text>
-                        <line x1="180" y1="198" x2="180" y2="202" stroke="black" stroke-width="2" />
-                        <text x="175" y="215" font-size="14" font-weight="bold">C</text>
-                    </svg>
-                </div>`,
-                bogi: [
-                    "ㄱ. 물질 X의 농도가 특정 농도보다 커질 때 사멸 시간이 급격히 증가하는 이유는 세균 표면 단백질의 급격한 응고로 인해 X 분자의 내부 투과가 차단되기 때문이다.",
-                    "ㄴ. 농도 C에서 세균 사멸 직후 병원체의 사체를 피부 표면에서 이탈시키는 비율은 Y가 X보다 높다.",
-                    "ㄷ. 농도가 C로 고정된 X 수용액을 유기물이 다량 존재하는 표면에 각각 도포할 경우, X의 그래프는 +y 방향으로 평행이동할 것이다."
-                ],
-                options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄴ", "④ ㄴ, ㄷ", "⑤ ㄱ, ㄴ, ㄷ"],
-                answer: 3
-            },
-            {
-                id: 2,
-                title: "[문제 2] 표는 환경 (가)와 (나)에 방역 물질 X ~ Z를 각각 단독 처리했을 때의 세균 생존율 상대값을 나타낸 것이다. X ~ Z는 각각 70% 에탄올, 100% 에탄올, 계면활성제 중 하나이고, (가)와 (나)는 각각 건조한 손과 유분이 있는 손 중 하나이다.",
-                visual: `
-                <div class="flex flex-col items-center gap-4 my-4">
-                    <table class="w-full max-w-sm text-center border-collapse text-sm bg-black text-white">
-                        <thead>
-                            <tr>
-                                <th class="border border-gray-600 p-2">환경</th>
-                                <th class="border border-gray-600 p-2">X 처리 시</th>
-                                <th class="border border-gray-600 p-2">Y 처리 시</th>
-                                <th class="border border-gray-600 p-2">Z 처리 시</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="border border-gray-600 p-2">(가)</td>
-                                <td class="border border-gray-600 p-2">100</td>
-                                <td class="border border-gray-600 p-2">a</td>
-                                <td class="border border-gray-600 p-2">0</td>
-                            </tr>
-                            <tr>
-                                <td class="border border-gray-600 p-2">(나)</td>
-                                <td class="border border-gray-600 p-2">0</td>
-                                <td class="border border-gray-600 p-2">b</td>
-                                <td class="border border-gray-600 p-2">0</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>`,
-                bogi: [
-                    "ㄱ. X는 100% 에탄올, (가)는 유분이 있는 손이다.",
-                    "ㄴ. b > a 이다.",
-                    "ㄷ. (가) 환경에서 Z를 처리한 후 피부 표면에 남아있는 세균 사체량은 Y를 처리했을 때보다 많다."
-                ],
-                options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄴ", "④ ㄱ, ㄷ", "⑤ ㄴ, ㄷ"],
-                answer: 1
-            },
-            {
-                id: 5,
-                title: "[문제 5] 그림은 유기물이 존재하는 피부 표면에 물질 P를 도포했을 때 임의의 세 시점 t1, t2, t3에서 측정한 '표면 단백질 응고 두께(d)'와 '세균 생존율(v)'을 순서 없이 나타낸 개형 추론표이다.",
-                visual: `
-                <div class="flex flex-col gap-4 my-4">
-                    <table class="text-center border-collapse text-sm bg-black text-white">
-                        <tbody>
-                            <tr>
-                                <th class="border border-gray-600 p-2 bg-gray-900">시간</th>
-                                <td class="border border-gray-600 p-2">t₁</td>
-                                <td class="border border-gray-600 p-2">t₂</td>
-                                <td class="border border-gray-600 p-2">t₃</td>
-                            </tr>
-                            <tr>
-                                <th class="border border-gray-600 p-2 bg-gray-900">응고 두께</th>
-                                <td class="border border-gray-600 p-2">d₁</td>
-                                <td class="border border-gray-600 p-2">d₂</td>
-                                <td class="border border-gray-600 p-2">d₃</td>
-                            </tr>
-                            <tr>
-                                <th class="border border-gray-600 p-2 bg-gray-900">생존율</th>
-                                <td class="border border-gray-600 p-2">v₁</td>
-                                <td class="border border-gray-600 p-2">v₂</td>
-                                <td class="border border-gray-600 p-2">v₃</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div class="text-sm bg-gray-100 p-3 rounded">
-                        [조건] 1. t1, t2, t3는 도포 후 경과 시간 T1, T2, T3 (T1 < T2 < T3)를 순서 없이 나타냄.<br>
-                        2. 응고 두께는 d2가 d1, d2, d3 중 최댓값이다.<br>
-                        3. 생존율은 v3 > v1 이다.
-                    </div>
-                </div>`,
-                bogi: [
-                    "ㄱ. 이 실험에서 실제 시간의 흐름은 t3 -> t1 -> t2 순서이다.",
-                    "ㄴ. d가 두꺼워지는 원인은 소수성 꼬리가 유기물 내부로 침투했기 때문이다.",
-                    "ㄷ. t2 시점에서 v2가 높은 수치를 유지하는 이유는 d가 방어막 역할을 했기 때문이다."
-                ],
-                options: ["① ㄱ", "② ㄷ", "③ ㄱ, ㄴ", "④ ㄱ, ㄷ", "⑤ ㄴ, ㄷ"],
-                answer: 4
-            },
-            {
-                id: 6,
-                title: "[문제 6] 다음은 방역 물질 (가)~(다)의 특성을 벤 다이어그램으로 나타낸 것이다. (가)~(다)는 각각 70% 에탄올, 100% 에탄올, 비누 중 하나이다.",
-                visual: `
-                <div class="flex justify-center my-4">
-                    <svg viewBox="0 0 240 220" class="w-56 h-auto bg-white border p-2">
-                        <circle cx="85" cy="85" r="60" fill="none" stroke="black" stroke-width="1.5" />
-                        <text x="30" y="40" font-size="14" font-weight="bold">가</text>
-                        <circle cx="155" cy="85" r="60" fill="none" stroke="black" stroke-width="1.5" />
-                        <text x="195" y="40" font-size="14" font-weight="bold">나</text>
-                        <circle cx="120" cy="145" r="60" fill="none" stroke="black" stroke-width="1.5" />
-                        <text x="160" y="210" font-size="14" font-weight="bold">다</text>
-                        <text x="65" y="80" font-size="14">a</text>
-                        <text x="115" y="80" font-size="14">b</text>
-                        <text x="165" y="80" font-size="14">?</text>
-                        <text x="115" y="115" font-size="14">c</text>
-                        <text x="85" y="135" font-size="14">?</text>
-                        <text x="145" y="135" font-size="14">d</text>
-                    </svg>
-                </div>
-                <div class="text-sm">
-                    조건 1: '수분을 급격히 탈취하여 방어막 붕괴 지연'은 a에 속함.<br>
-                    조건 2: '물 분자가 방역 기전의 핵심 촉매'는 b+c에 속함.
-                </div>`,
-                bogi: [
-                    "ㄱ. (가)는 100% 에탄올이다.",
-                    "ㄴ. '유기물 표면에서 캡슐화 역효과를 유발'은 (나)만의 고유 영역이다.",
-                    "ㄷ. '엔트로피가 증가하는 방향으로 자발적 미셀 형성'은 (다)만의 고유 영역이다."
-                ],
-                options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄷ", "④ ㄴ, ㄷ", "⑤ ㄱ, ㄴ, ㄷ"],
-                answer: 1
-            },
-            {
-                id: 11,
-                title: "[문제 11] 다음은 교내 방역 로봇의 의사결정 회로도이다.\n[입력] 손 표면 스캔 ➔ [조건판별 A] ➔ (YES) [결과 1: 물질 X 분사 후 건조] / (NO) [결과 2: 물질 Y 도포 후 흐르는 물 세정]",
-                visual: "",
-                bogi: [
-                    "ㄱ. [조건판별 A]의 기준은 \"표면에 유기물이 존재하는가?\" 이다.",
-                    "ㄴ. X는 사체를 표면에 잔류시키는 방식을 취한다.",
-                    "ㄷ. 이 로봇의 알고리즘 상, 건조한 도서관 문손잡이를 만진 학생에게는 [결과 1]이 처방된다."
-                ],
-                options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄴ", "④ ㄴ, ㄷ", "⑤ ㄱ, ㄴ, ㄷ"],
-                answer: 4
+                id: 4, 
+                difficulty: "hard", 
+                title: "[문제] 다음은 방역 물질 (가)~(다)의 특성을 나타낸 것이다. 옳은 것을 고르시오.",
+                imageUrl: "", 
+                visual: `<div class="p-4 bg-gray-100 text-center mb-4 border border-gray-300 font-mono">(가) 70% 에탄올<br>(나) 100% 에탄올<br>(다) 비누</div>`,
+                bogi: ["ㄱ. (가)는 캡슐화 역효과를 방지한다.", "ㄴ. (다)는 미셀을 형성한다."],
+                options: ["① ㄱ", "② ㄴ", "③ ㄱ, ㄴ", "④ 없음", "⑤ 모르겠음"],
+                answer: "2",
+                explain: "비누는 농도가 임계치 이상일 때 자발적으로 미셀을 형성합니다."
             }
         ];
 
-        // --- [상태 변수] ---
-        let currentMode = null;
+        // --- [상태 변수 및 로컬 스토리지 초기화] ---
+        let questions = JSON.parse(localStorage.getItem('quarantine_questions')) || defaultQuestions;
+        let stats = JSON.parse(localStorage.getItem('quarantine_stats')) || {};
+        
+        let currentMode = null; // 'easy' or 'hard'
         let currentQuestion = null;
         let isAnswered = false;
 
-        // --- [로직: 화면 전환 및 문제 세팅] ---
+        // 초기 통계 객체 세팅
+        function initStats() {
+            questions.forEach(q => {
+                if (!stats[q.id]) stats[q.id] = { total: 0, correct: 0 };
+            });
+            saveData();
+        }
+        initStats();
+
+        function saveData() {
+            localStorage.setItem('quarantine_questions', JSON.stringify(questions));
+            localStorage.setItem('quarantine_stats', JSON.stringify(stats));
+        }
+
+        // --- [UI 라우팅 (모드 전환)] ---
+        function switchMode(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hide'));
+            document.getElementById('nav-student').classList.remove('bg-blue-600', 'bg-gray-700');
+            document.getElementById('nav-admin').classList.remove('bg-blue-600', 'bg-gray-700');
+
+            if (viewName === 'student') {
+                document.getElementById('view-student').classList.remove('hide');
+                document.getElementById('nav-student').classList.add('bg-blue-600');
+                document.getElementById('nav-admin').classList.add('bg-gray-700');
+                resetToHome();
+            } else {
+                document.getElementById('view-admin').classList.remove('hide');
+                document.getElementById('nav-admin').classList.add('bg-blue-600');
+                document.getElementById('nav-student').classList.add('bg-gray-700');
+                renderAdminTable();
+                closeEditor();
+            }
+        }
+
+        // ==================== [학생 모드 로직] ====================
         function resetToHome() {
-            document.getElementById('home-screen').classList.remove('hidden');
-            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('home-screen').classList.remove('hide');
+            document.getElementById('quiz-screen').classList.add('hide');
         }
 
         function loadQuestion(mode) {
             currentMode = mode;
             isAnswered = false;
             
-            // 데이터 선택 및 랜덤 추출
-            const dataList = mode === 'easy' ? easyQuestions : hardQuestions;
-            const randomIndex = Math.floor(Math.random() * dataList.length);
-            currentQuestion = dataList[randomIndex];
+            const filteredData = questions.filter(q => q.difficulty === mode);
+            if(filteredData.length === 0) {
+                alert("해당 난이도의 문제가 없습니다. 관리자 모드에서 문제를 추가해주세요.");
+                resetToHome();
+                return;
+            }
 
-            // UI 업데이트
-            document.getElementById('home-screen').classList.add('hidden');
-            document.getElementById('quiz-screen').classList.remove('hidden');
-            document.getElementById('feedback-area').classList.add('hidden');
-            document.getElementById('quiz-controls').classList.add('hidden');
+            const randomIndex = Math.floor(Math.random() * filteredData.length);
+            currentQuestion = filteredData[randomIndex];
+
+            // 통계 객체가 없으면 예외 방지용 생성
+            if(!stats[currentQuestion.id]) stats[currentQuestion.id] = { total: 0, correct: 0 };
+
+            document.getElementById('home-screen').classList.add('hide');
+            document.getElementById('quiz-screen').classList.remove('hide');
+            document.getElementById('feedback-area').classList.add('hide');
+            document.getElementById('quiz-controls').classList.add('hide');
             
-            // 뱃지 설정
             const badge = document.getElementById('quiz-type-badge');
             if (mode === 'easy') {
                 badge.innerText = '🌱 쉬운 문제 (O/X)';
@@ -293,21 +264,24 @@
 
         function renderQuestion() {
             const container = document.getElementById('question-content');
-            let html = `<div class="text-xl font-bold leading-relaxed mb-6">${currentQuestion.title}</div>`;
+            let html = `<div class="text-xl font-bold leading-relaxed mb-6 whitespace-pre-wrap">${currentQuestion.title}</div>`;
+
+            // 관리자가 추가한 이미지 URL 렌더링
+            if (currentQuestion.imageUrl) {
+                html += `<div class="flex justify-center my-6"><img src="${currentQuestion.imageUrl}" class="max-w-full h-auto rounded shadow-sm border border-gray-200" alt="문제 이미지"></div>`;
+            } else if (currentQuestion.visual) {
+                // 기존 데이터용 HTML 렌더링 폴백
+                html += `<div class="my-6">${currentQuestion.visual}</div>`;
+            }
 
             if (currentMode === 'easy') {
-                // O/X 버튼 렌더링
                 html += `
                 <div class="flex justify-center gap-8 mt-12">
-                    <button onclick="checkAnswer('O')" class="ox-btn w-32 h-32 text-6xl font-black text-blue-500 rounded-full border-4 border-blue-500 hover:bg-blue-500 hover:text-white shadow-xl">O</button>
-                    <button onclick="checkAnswer('X')" class="ox-btn w-32 h-32 text-6xl font-black text-red-500 rounded-full border-4 border-red-500 hover:bg-red-500 hover:text-white shadow-xl">X</button>
+                    <button onclick="checkAnswer('O')" class="ox-btn w-32 h-32 text-6xl font-black text-blue-500 rounded-full border-4 border-blue-500 hover:bg-blue-500 hover:text-white shadow-xl bg-white">O</button>
+                    <button onclick="checkAnswer('X')" class="ox-btn w-32 h-32 text-6xl font-black text-red-500 rounded-full border-4 border-red-500 hover:bg-red-500 hover:text-white shadow-xl bg-white">X</button>
                 </div>`;
             } else {
-                // 시각 자료, 보기, 객관식 선지 렌더링
-                if (currentQuestion.visual) {
-                    html += `<div class="my-6">${currentQuestion.visual}</div>`;
-                }
-                if (currentQuestion.bogi && currentQuestion.bogi.length > 0) {
+                if (currentQuestion.bogi && currentQuestion.bogi.length > 0 && currentQuestion.bogi[0].trim() !== '') {
                     html += `<div class="border-2 border-gray-800 p-5 mb-6 bg-gray-50 rounded-md">
                                 <div class="font-bold mb-3">&lt;보기&gt;</div>`;
                     currentQuestion.bogi.forEach(item => {
@@ -315,11 +289,11 @@
                     });
                     html += `</div>`;
                 }
-                html += `<div class="flex flex-wrap gap-4 mt-6" id="options-container">`;
-                currentQuestion.options.forEach((opt, idx) => {
-                    const optValue = idx + 1;
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6" id="options-container">`;
+                (currentQuestion.options || []).forEach((opt, idx) => {
+                    const optValue = String(idx + 1);
                     html += `
-                        <button id="opt-${optValue}" onclick="checkAnswer(${optValue})" class="flex-1 min-w-[100px] p-4 text-center border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 font-bold text-lg transition-colors">
+                        <button id="opt-${optValue}" onclick="checkAnswer('${optValue}')" class="text-left p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 font-bold text-lg transition-colors bg-white">
                             ${opt}
                         </button>
                     `;
@@ -330,23 +304,27 @@
             container.innerHTML = html;
         }
 
-        // --- [로직: 정답 확인] ---
         function checkAnswer(userAnswer) {
             if (isAnswered) return;
             isAnswered = true;
 
-            const isCorrect = userAnswer === currentQuestion.answer;
+            const isCorrect = String(userAnswer) === String(currentQuestion.answer);
+            
+            // 통계 기록 및 저장
+            stats[currentQuestion.id].total++;
+            if (isCorrect) stats[currentQuestion.id].correct++;
+            saveData();
+
             const feedbackArea = document.getElementById('feedback-area');
             const controls = document.getElementById('quiz-controls');
 
-            // 버튼 비활성화 및 스타일 처리
+            // 버튼 비활성화 시각화
             if (currentMode === 'hard') {
                 const buttons = document.querySelectorAll('#options-container button');
                 buttons.forEach(btn => {
                     btn.disabled = true;
                     btn.classList.add('opacity-50', 'cursor-not-allowed');
                 });
-                // 선택한 버튼 강조
                 document.getElementById(`opt-${userAnswer}`).classList.remove('opacity-50', 'bg-gray-100');
                 document.getElementById(`opt-${userAnswer}`).classList.add('bg-blue-100', 'border-blue-500');
             } else {
@@ -354,20 +332,165 @@
                 buttons.forEach(btn => btn.disabled = true);
             }
 
-            // 피드백 텍스트 및 색상 결정
-            feedbackArea.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+            // 피드백 렌더링
+            feedbackArea.className = `mt-8 p-6 rounded-lg text-center font-bold text-xl animate-bounce ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            
+            let explainText = currentQuestion.explain ? `<p class="mt-3 text-sm font-normal text-gray-700 bg-white p-3 rounded opacity-90">${currentQuestion.explain}</p>` : '';
             
             if (isCorrect) {
-                feedbackArea.classList.add('bg-green-100', 'text-green-800');
-                feedbackArea.innerHTML = `🎉 정답입니다!`;
+                feedbackArea.innerHTML = `🎉 정답입니다! ${explainText}`;
             } else {
-                feedbackArea.classList.add('bg-red-100', 'text-red-800');
-                let explainText = currentMode === 'easy' && currentQuestion.explain ? `<p class="mt-2 text-sm font-normal text-gray-700">${currentQuestion.explain}</p>` : '';
                 feedbackArea.innerHTML = `❌ 오답입니다. (정답: ${currentQuestion.answer})${explainText}`;
             }
 
-            controls.classList.remove('hidden');
+            controls.classList.remove('hide');
         }
+
+        // ==================== [관리자 모드 로직] ====================
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+
+            // ID 순으로 정렬
+            const sortedQuestions = [...questions].sort((a, b) => a.id - b.id);
+
+            sortedQuestions.forEach(q => {
+                const st = stats[q.id] || { total: 0, correct: 0 };
+                const correctRate = st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0;
+                const incorrectRate = st.total > 0 ? 100 - correctRate : 0;
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 text-gray-500 font-mono">#${q.id}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 text-xs rounded-full ${q.difficulty === 'easy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${q.difficulty === 'easy' ? 'O/X' : '객관식'}
+                        </span>
+                    </td>
+                    <td class="p-3 truncate max-w-xs text-gray-800" title="${q.title}">${q.title}</td>
+                    <td class="p-3 text-center font-bold text-gray-600">${st.total}회</td>
+                    <td class="p-3 text-center font-bold text-blue-600">${st.total > 0 ? correctRate + '%' : '-'}</td>
+                    <td class="p-3 text-center font-bold text-red-500">${st.total > 0 ? incorrectRate + '%' : '-'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="openEditor(${q.id})" class="text-blue-600 hover:text-blue-800 underline text-sm font-bold">수정</button>
+                        <button onclick="deleteQuestion(${q.id})" class="ml-2 text-red-600 hover:text-red-800 underline text-sm">삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearStats() {
+            if(confirm("모든 문항의 정답률 통계를 초기화하시겠습니까? (문제는 삭제되지 않습니다.)")) {
+                questions.forEach(q => {
+                    stats[q.id] = { total: 0, correct: 0 };
+                });
+                saveData();
+                renderAdminTable();
+                alert("초기화 되었습니다.");
+            }
+        }
+
+        function deleteQuestion(id) {
+            if(confirm("정말 이 문제를 삭제하시겠습니까?")) {
+                questions = questions.filter(q => q.id !== id);
+                delete stats[id];
+                saveData();
+                renderAdminTable();
+            }
+        }
+
+        function toggleEditorFields() {
+            const diff = document.getElementById('edit-difficulty').value;
+            const mcqFields = document.getElementById('editor-mcq-fields');
+            if (diff === 'hard') {
+                mcqFields.classList.remove('hide');
+                document.getElementById('edit-options').required = true;
+            } else {
+                mcqFields.classList.add('hide');
+                document.getElementById('edit-options').required = false;
+            }
+        }
+
+        function openEditor(id) {
+            document.getElementById('admin-list').classList.add('hide');
+            document.getElementById('admin-editor').classList.remove('hide');
+            const form = document.getElementById('question-form');
+            form.reset();
+
+            if (id === null) {
+                // 새 문제 추가 모드
+                document.getElementById('editor-title').innerText = "새 문제 추가";
+                document.getElementById('edit-id').value = "";
+                document.getElementById('edit-difficulty').value = "easy";
+            } else {
+                // 기존 문제 수정 모드
+                document.getElementById('editor-title').innerText = `문제 수정 (#${id})`;
+                const q = questions.find(q => q.id === id);
+                document.getElementById('edit-id').value = q.id;
+                document.getElementById('edit-difficulty').value = q.difficulty;
+                document.getElementById('edit-title').value = q.title;
+                document.getElementById('edit-image').value = q.imageUrl || "";
+                document.getElementById('edit-answer').value = q.answer;
+                document.getElementById('edit-explain').value = q.explain || "";
+                
+                if (q.difficulty === 'hard') {
+                    document.getElementById('edit-bogi').value = (q.bogi || []).join('\n');
+                    document.getElementById('edit-options').value = (q.options || []).join('\n');
+                }
+            }
+            toggleEditorFields();
+        }
+
+        function closeEditor() {
+            document.getElementById('admin-editor').classList.add('hide');
+            document.getElementById('admin-list').classList.remove('hide');
+        }
+
+        function saveQuestion(e) {
+            e.preventDefault();
+            
+            const idVal = document.getElementById('edit-id').value;
+            const difficulty = document.getElementById('edit-difficulty').value;
+            
+            const newQuestion = {
+                id: idVal ? parseInt(idVal) : Date.now(), // 새 문제면 현재 타임스탬프를 ID로 사용
+                difficulty: difficulty,
+                title: document.getElementById('edit-title').value,
+                imageUrl: document.getElementById('edit-image').value,
+                answer: document.getElementById('edit-answer').value,
+                explain: document.getElementById('edit-explain').value,
+            };
+
+            if (difficulty === 'hard') {
+                const bogiText = document.getElementById('edit-bogi').value;
+                newQuestion.bogi = bogiText ? bogiText.split('\n').filter(s => s.trim() !== '') : [];
+                
+                const optionsText = document.getElementById('edit-options').value;
+                newQuestion.options = optionsText ? optionsText.split('\n').filter(s => s.trim() !== '') : [];
+            }
+
+            if (idVal) {
+                // 기존 문제 업데이트
+                const index = questions.findIndex(q => q.id === parseInt(idVal));
+                // visual(기존 SVG등) 데이터가 있었다면 유지
+                if(questions[index].visual) newQuestion.visual = questions[index].visual;
+                questions[index] = newQuestion;
+            } else {
+                // 새 문제 추가
+                questions.push(newQuestion);
+                stats[newQuestion.id] = { total: 0, correct: 0 };
+            }
+
+            saveData();
+            closeEditor();
+            renderAdminTable();
+            alert("저장되었습니다!");
+        }
+
+        // 초기 시작 모드 설정
+        switchMode('student');
 
     </script>
 </body>
