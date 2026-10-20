@@ -151,4 +151,511 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="p-4 bg-white border rounded">
                             <label class="block text-sm font-bold text-gray-700 mb-1">이미지 URL (선택사항)</label>
-                            <input type="url" id
+                            <input type="url" id="edit-image" placeholder="https://example.com/image.png" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div class="p-4 bg-white border rounded">
+                            <div class="flex items-center mb-2">
+                                <input type="checkbox" id="enable-condition" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" onchange="toggleConditionField()">
+                                <label for="enable-condition" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">조건 박스 추가</label>
+                            </div>
+                            <div id="condition-field" class="hide mt-2">
+                                <textarea id="edit-condition" rows="3" placeholder="(단, 세균 생존율 상대값은 0~100이다.)" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 표(Table) 추가 영역 -->
+                    <div class="p-4 bg-white border rounded mt-2">
+                        <div class="flex items-center mb-2">
+                            <input type="checkbox" id="enable-table" class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" onchange="toggleTableField()">
+                            <label for="enable-table" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">데이터 표(Table) 추가</label>
+                        </div>
+                        <div id="table-field" class="hide mt-2">
+                            <p class="text-xs text-gray-500 mb-2">칸은 <b>|</b> 기호로, 줄은 <b>엔터(줄바꿈)</b>로 구분합니다. (첫 줄은 표의 제목칸이 됩니다)</p>
+                            <textarea id="edit-table" rows="4" placeholder="환경 | X 처리 | Y 처리&#10;(가) | 100 | a&#10;(나) | 0 | b" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50 font-mono"></textarea>
+                        </div>
+                    </div>
+
+                    <div id="editor-mcq-fields" class="hide space-y-4 border p-4 bg-white rounded mt-2">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">&lt;보기&gt; 내용 (줄바꿈 구분, 선택)</label>
+                            <textarea id="edit-bogi" rows="3" placeholder="ㄱ. 첫번째 보기&#10;ㄴ. 두번째 보기" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">객관식 선지 (반드시 5줄로 작성, 줄바꿈 구분)</label>
+                            <textarea id="edit-options" rows="5" placeholder="① ㄱ&#10;② ㄴ&#10;③ ㄱ, ㄴ&#10;④ ㄴ, ㄷ&#10;⑤ ㄱ, ㄴ, ㄷ" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">해설 (선택사항)</label>
+                        <textarea id="edit-explain" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
+                        <button type="button" onclick="closeEditor()" class="px-4 py-2 bg-gray-300 text-gray-800 font-bold rounded hover:bg-gray-400">취소</button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow">클라우드 저장하기</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================================
+        // 👇 Apps Script 웹 앱 URL (배포 후 생성된 URL로 갱신하세요) 👇
+        // ========================================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzw_StiP6-q-8Sz9HnbCfhT-bmnsGRt7igNtKBvH2WaSZCJOELGs25n_gvo9gDScddv/exec';
+        
+        let questions = [];
+        let stats = {};
+        
+        let currentMode = null;
+        let currentQuestion = null;
+        let isAnswered = false;
+        let lastQuestionId = null; 
+
+        function showLoading(msg = '데이터를 불러오는 중입니다...') {
+            document.getElementById('loading-text').innerText = msg;
+            document.getElementById('loading-overlay').classList.remove('hide');
+        }
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hide');
+        }
+
+        async function fetchAllData() {
+            showLoading();
+            try {
+                const res = await fetch(SCRIPT_URL);
+                const data = await res.json();
+                questions = data.questions || [];
+                stats = data.stats || {};
+                
+                if(!document.getElementById('view-admin').classList.contains('hide')) {
+                    renderAdminTable();
+                }
+            } catch (error) {
+                console.error(error);
+                alert("서버 연결에 실패했습니다. SCRIPT_URL을 확인해주세요.");
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function postData(payload, successMsg = "") {
+            showLoading('클라우드에 동기화 중...');
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                await fetchAllData();
+                if(successMsg) alert(successMsg);
+            } catch (error) {
+                console.error(error);
+                alert("동기화 중 오류가 발생했습니다.");
+                hideLoading();
+            }
+        }
+
+        window.onload = () => {
+            fetchAllData();
+            switchMode('student');
+        };
+
+        function switchMode(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hide'));
+            document.getElementById('nav-student').classList.remove('bg-blue-600', 'bg-gray-700');
+            document.getElementById('nav-admin').classList.remove('bg-blue-600', 'bg-gray-700');
+
+            if (viewName === 'student') {
+                document.getElementById('view-student').classList.remove('hide');
+                document.getElementById('nav-student').classList.add('bg-blue-600');
+                document.getElementById('nav-admin').classList.add('bg-gray-700');
+                resetToHome();
+            } else {
+                document.getElementById('view-admin').classList.remove('hide');
+                document.getElementById('nav-admin').classList.add('bg-blue-600');
+                document.getElementById('nav-student').classList.add('bg-gray-700');
+                renderAdminTable();
+                closeEditor();
+            }
+        }
+
+        function resetToHome() {
+            document.getElementById('home-screen').classList.remove('hide');
+            document.getElementById('quiz-screen').classList.add('hide');
+            document.getElementById('list-screen').classList.add('hide');
+        }
+
+        // --- 새로 추가된 문제 목록 보기 함수 ---
+        function showQuestionList() {
+            document.getElementById('home-screen').classList.add('hide');
+            document.getElementById('quiz-screen').classList.add('hide');
+            document.getElementById('list-screen').classList.remove('hide');
+
+            const container = document.getElementById('question-list-container');
+            container.innerHTML = '';
+
+            const sortedQuestions = [...questions].sort((a, b) => a.id - b.id);
+            
+            if(sortedQuestions.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 col-span-2 text-center p-8 bg-white rounded shadow-sm border border-gray-200">등록된 문제가 없습니다. 관리자 모드에서 추가해주세요.</p>';
+                return;
+            }
+
+            sortedQuestions.forEach(q => {
+                const isEasy = q.difficulty === 'easy';
+                const diffBadge = isEasy 
+                    ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full border border-green-300 font-bold">O/X</span>'
+                    : '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full border border-red-300 font-bold">객관식</span>';
+                
+                const btn = document.createElement('button');
+                btn.className = "flex flex-col text-left p-5 bg-white border border-gray-300 rounded-lg hover:border-blue-500 hover:shadow-md transition-all";
+                btn.onclick = () => loadSpecificQuestion(q.id);
+                btn.innerHTML = `
+                    <div class="flex items-center justify-between mb-3 w-full">
+                        <span class="text-sm font-black text-gray-500 bg-gray-100 px-2 rounded">#${q.id}</span>
+                        ${diffBadge}
+                    </div>
+                    <div class="font-bold text-gray-800 line-clamp-2 leading-snug w-full text-base">${q.title}</div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        // --- 특정 문제 불러오기 함수 ---
+        function loadSpecificQuestion(id) {
+            const q = questions.find(item => item.id === id);
+            if (!q) return;
+
+            currentMode = q.difficulty;
+            currentQuestion = q;
+            isAnswered = false;
+            lastQuestionId = q.id;
+
+            document.getElementById('list-screen').classList.add('hide');
+            document.getElementById('quiz-screen').classList.remove('hide');
+            document.getElementById('feedback-area').classList.add('hide');
+            document.getElementById('quiz-controls').classList.add('hide');
+
+            const badge = document.getElementById('quiz-type-badge');
+            if (currentMode === 'easy') {
+                badge.innerText = '🌱 지정 문제 (O/X)';
+                badge.className = 'px-3 py-1 rounded-full bg-green-100 text-green-800 border border-green-300';
+            } else {
+                badge.innerText = '🔥 지정 문제 (객관식)';
+                badge.className = 'px-3 py-1 rounded-full bg-red-100 text-red-800 border border-red-300';
+            }
+
+            renderQuestion();
+        }
+
+        function loadQuestion(mode) {
+            currentMode = mode;
+            isAnswered = false;
+            
+            const filteredData = questions.filter(q => q.difficulty === mode);
+            if(filteredData.length === 0) {
+                alert("해당 난이도의 문제가 없습니다. 관리자 모드에서 추가해주세요.");
+                resetToHome();
+                return;
+            }
+
+            if (filteredData.length === 1) {
+                currentQuestion = filteredData[0];
+            } else {
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * filteredData.length);
+                } while (filteredData[randomIndex].id === lastQuestionId);
+                
+                currentQuestion = filteredData[randomIndex];
+            }
+
+            lastQuestionId = currentQuestion.id;
+
+            document.getElementById('home-screen').classList.add('hide');
+            document.getElementById('list-screen').classList.add('hide');
+            document.getElementById('quiz-screen').classList.remove('hide');
+            document.getElementById('feedback-area').classList.add('hide');
+            document.getElementById('quiz-controls').classList.add('hide');
+            
+            const badge = document.getElementById('quiz-type-badge');
+            if (mode === 'easy') {
+                badge.innerText = '🌱 랜덤 뽑기 (O/X)';
+                badge.className = 'px-3 py-1 rounded-full bg-green-100 text-green-800 border border-green-300';
+            } else {
+                badge.innerText = '🔥 랜덤 뽑기 (객관식)';
+                badge.className = 'px-3 py-1 rounded-full bg-red-100 text-red-800 border border-red-300';
+            }
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const container = document.getElementById('question-content');
+            let html = `<div class="text-xl font-bold leading-relaxed mb-4 whitespace-pre-wrap">${currentQuestion.title}</div>`;
+
+            if (currentQuestion.condition && currentQuestion.condition.trim() !== '') {
+                html += `<div class="text-sm bg-gray-100 p-4 rounded border border-gray-300 mb-6 font-medium text-gray-700 whitespace-pre-wrap leading-relaxed shadow-inner"><strong>[조건]</strong>\n${currentQuestion.condition}</div>`;
+            }
+
+            if (currentQuestion.imageUrl && currentQuestion.imageUrl.trim() !== '') {
+                html += `<div class="flex justify-center my-6"><img src="${currentQuestion.imageUrl}" class="max-w-full h-auto rounded shadow-sm border border-gray-200" alt="문제 이미지"></div>`;
+            }
+
+            if (currentQuestion.tableData && currentQuestion.tableData.trim() !== '') {
+                const rows = currentQuestion.tableData.trim().split('\n');
+                let tableHtml = `<div class="my-6 overflow-x-auto"><table class="w-full max-w-lg mx-auto text-center border-collapse text-sm bg-black text-white">`;
+                
+                rows.forEach((row, index) => {
+                    const cols = row.split('|').map(c => c.trim());
+                    tableHtml += `<tr>`;
+                    cols.forEach(col => {
+                        if (index === 0) {
+                            tableHtml += `<th class="border border-gray-600 p-2 font-bold">${col}</th>`;
+                        } else {
+                            tableHtml += `<td class="border border-gray-600 p-2">${col}</td>`;
+                        }
+                    });
+                    tableHtml += `</tr>`;
+                });
+                tableHtml += `</table></div>`;
+                html += tableHtml;
+            }
+
+            if (currentMode === 'easy') {
+                html += `
+                <div class="flex justify-center gap-8 mt-12">
+                    <button onclick="checkAnswer('O')" class="ox-btn w-32 h-32 text-6xl font-black text-blue-500 rounded-full border-4 border-blue-500 hover:bg-blue-500 hover:text-white shadow-xl bg-white">O</button>
+                    <button onclick="checkAnswer('X')" class="ox-btn w-32 h-32 text-6xl font-black text-red-500 rounded-full border-4 border-red-500 hover:bg-red-500 hover:text-white shadow-xl bg-white">X</button>
+                </div>`;
+            } else {
+                if (currentQuestion.bogi && currentQuestion.bogi.length > 0 && currentQuestion.bogi[0].trim() !== '') {
+                    html += `<div class="border-2 border-gray-800 p-5 mb-6 bg-gray-50 rounded-md">
+                                <div class="font-bold mb-3">&lt;보기&gt;</div>`;
+                    currentQuestion.bogi.forEach(item => {
+                        html += `<div class="mb-2 text-base leading-relaxed">${item}</div>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6" id="options-container">`;
+                (currentQuestion.options || []).forEach((opt, idx) => {
+                    const optValue = String(idx + 1);
+                    html += `
+                        <button id="opt-${optValue}" onclick="checkAnswer('${optValue}')" class="text-left p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 font-bold text-lg transition-colors bg-white">
+                            ${opt}
+                        </button>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function checkAnswer(userAnswer) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const isCorrect = String(userAnswer) === String(currentQuestion.answer);
+            
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'recordStat', id: currentQuestion.id, isCorrect: isCorrect })
+            }).then(() => fetchAllData()); 
+
+            const feedbackArea = document.getElementById('feedback-area');
+            const controls = document.getElementById('quiz-controls');
+
+            if (currentMode === 'hard') {
+                const buttons = document.querySelectorAll('#options-container button');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                });
+                document.getElementById(`opt-${userAnswer}`).classList.remove('opacity-50', 'bg-gray-100');
+                document.getElementById(`opt-${userAnswer}`).classList.add('bg-blue-100', 'border-blue-500');
+            } else {
+                const buttons = document.querySelectorAll('.ox-btn');
+                buttons.forEach(btn => btn.disabled = true);
+            }
+
+            feedbackArea.className = `mt-8 p-6 rounded-lg text-center font-bold text-xl transition-all duration-300 ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+            
+            let explainText = currentQuestion.explain ? `<div class="mt-4 text-sm font-normal text-gray-800 bg-white p-4 rounded opacity-95 text-left whitespace-pre-wrap leading-relaxed shadow-sm border ${isCorrect ? 'border-green-200' : 'border-red-200'}">${currentQuestion.explain}</div>` : '';
+            
+            if (isCorrect) feedbackArea.innerHTML = `🎉 정답입니다! ${explainText}`;
+            else feedbackArea.innerHTML = `❌ 오답입니다. (정답: ${currentQuestion.answer})${explainText}`;
+
+            controls.classList.remove('hide');
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+
+            const sortedQuestions = [...questions].sort((a, b) => a.id - b.id);
+
+            sortedQuestions.forEach(q => {
+                const st = stats[q.id] || { total: 0, correct: 0 };
+                const correctRate = st.total > 0 ? Math.round((st.correct / st.total) * 100) : 0;
+                const incorrectRate = st.total > 0 ? 100 - correctRate : 0;
+                
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 text-gray-500 font-mono">#${q.id}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 text-xs rounded-full ${q.difficulty === 'easy' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${q.difficulty === 'easy' ? 'O/X' : '객관식'}
+                        </span>
+                    </td>
+                    <td class="p-3 truncate max-w-xs text-gray-800" title="${q.title}">
+                        ${q.title}
+                        ${q.condition ? '<span class="ml-2 px-1 text-[10px] bg-gray-200 text-gray-600 rounded">조건</span>' : ''}
+                        ${q.imageUrl ? '<span class="ml-1 px-1 text-[10px] bg-blue-100 text-blue-600 rounded">IMG</span>' : ''}
+                        ${q.tableData ? '<span class="ml-1 px-1 text-[10px] bg-yellow-100 text-yellow-700 rounded">표</span>' : ''}
+                    </td>
+                    <td class="p-3 text-center font-bold text-gray-600">${st.total}회</td>
+                    <td class="p-3 text-center font-bold text-blue-600">${st.total > 0 ? correctRate + '%' : '-'}</td>
+                    <td class="p-3 text-center font-bold text-red-500">${st.total > 0 ? incorrectRate + '%' : '-'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="openEditor(${q.id})" class="text-blue-600 hover:text-blue-800 underline text-sm font-bold">수정</button>
+                        <button onclick="deleteQuestion(${q.id})" class="ml-2 text-red-600 hover:text-red-800 underline text-sm">삭제</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function resetAllStats() {
+            if(confirm("클라우드의 모든 문항 정답률 통계를 초기화하시겠습니까?")) {
+                postData({ action: 'resetStats' }, "초기화 되었습니다.");
+            }
+        }
+
+        function deleteQuestion(id) {
+            if(confirm("정말 이 문제를 클라우드에서 삭제하시겠습니까?")) {
+                postData({ action: 'deleteQuestion', id: id }, "삭제되었습니다.");
+            }
+        }
+
+        function toggleEditorFields() {
+            const diff = document.getElementById('edit-difficulty').value;
+            const mcqFields = document.getElementById('editor-mcq-fields');
+            if (diff === 'hard') {
+                mcqFields.classList.remove('hide');
+                document.getElementById('edit-options').required = true;
+            } else {
+                mcqFields.classList.add('hide');
+                document.getElementById('edit-options').required = false;
+            }
+        }
+
+        function toggleConditionField() {
+            const checkbox = document.getElementById('enable-condition');
+            const field = document.getElementById('condition-field');
+            if (checkbox.checked) field.classList.remove('hide');
+            else { field.classList.add('hide'); document.getElementById('edit-condition').value = ''; }
+        }
+
+        function toggleTableField() {
+            const checkbox = document.getElementById('enable-table');
+            const field = document.getElementById('table-field');
+            if (checkbox.checked) field.classList.remove('hide');
+            else { field.classList.add('hide'); document.getElementById('edit-table').value = ''; }
+        }
+
+        function openEditor(id) {
+            document.getElementById('admin-list').classList.add('hide');
+            document.getElementById('admin-editor').classList.remove('hide');
+            const form = document.getElementById('question-form');
+            form.reset();
+
+            const conditionCheckbox = document.getElementById('enable-condition');
+            const tableCheckbox = document.getElementById('enable-table');
+            
+            if (id === null) {
+                document.getElementById('editor-title').innerText = "새 문제 추가";
+                document.getElementById('edit-id').value = "";
+                document.getElementById('edit-difficulty').value = "easy";
+                conditionCheckbox.checked = false;
+                tableCheckbox.checked = false;
+            } else {
+                document.getElementById('editor-title').innerText = `문제 수정 (#${id})`;
+                const q = questions.find(q => q.id === id);
+                document.getElementById('edit-id').value = q.id;
+                document.getElementById('edit-difficulty').value = q.difficulty;
+                document.getElementById('edit-title').value = q.title;
+                document.getElementById('edit-image').value = q.imageUrl || "";
+                document.getElementById('edit-answer').value = q.answer;
+                document.getElementById('edit-explain').value = q.explain || "";
+                
+                if (q.condition && q.condition.trim() !== "") {
+                    conditionCheckbox.checked = true;
+                    document.getElementById('edit-condition').value = q.condition;
+                } else {
+                    conditionCheckbox.checked = false;
+                    document.getElementById('edit-condition').value = "";
+                }
+
+                if (q.tableData && q.tableData.trim() !== "") {
+                    tableCheckbox.checked = true;
+                    document.getElementById('edit-table').value = q.tableData;
+                } else {
+                    tableCheckbox.checked = false;
+                    document.getElementById('edit-table').value = "";
+                }
+
+                if (q.difficulty === 'hard') {
+                    document.getElementById('edit-bogi').value = (q.bogi || []).join('\n');
+                    document.getElementById('edit-options').value = (q.options || []).join('\n');
+                }
+            }
+            toggleEditorFields();
+            toggleConditionField();
+            toggleTableField();
+        }
+
+        function closeEditor() {
+            document.getElementById('admin-editor').classList.add('hide');
+            document.getElementById('admin-list').classList.remove('hide');
+        }
+
+        function saveQuestion(e) {
+            e.preventDefault();
+            const idVal = document.getElementById('edit-id').value;
+            const difficulty = document.getElementById('edit-difficulty').value;
+            
+            const newQuestion = {
+                id: idVal ? parseInt(idVal) : Date.now(),
+                difficulty: difficulty,
+                title: document.getElementById('edit-title').value,
+                imageUrl: document.getElementById('edit-image').value,
+                answer: document.getElementById('edit-answer').value,
+                explain: document.getElementById('edit-explain').value,
+            };
+
+            const isConditionEnabled = document.getElementById('enable-condition').checked;
+            newQuestion.condition = isConditionEnabled ? document.getElementById('edit-condition').value : "";
+
+            const isTableEnabled = document.getElementById('enable-table').checked;
+            newQuestion.tableData = isTableEnabled ? document.getElementById('edit-table').value : "";
+
+            if (difficulty === 'hard') {
+                const bogiText = document.getElementById('edit-bogi').value;
+                newQuestion.bogi = bogiText ? bogiText.split('\n').filter(s => s.trim() !== '') : [];
+                
+                const optionsText = document.getElementById('edit-options').value;
+                newQuestion.options = optionsText ? optionsText.split('\n').filter(s => s.trim() !== '') : [];
+            }
+
+            postData({ action: 'saveQuestion', question: newQuestion }, "클라우드에 저장되었습니다!");
+            closeEditor();
+        }
+    </script>
+</body>
+</html>
